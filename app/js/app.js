@@ -6100,13 +6100,6 @@ App.controller('dummyVehiclesController', [
   }
 ]);
 
-App.controller('eventDetailController', [
-  '$scope', '$rootScope', '$stateParams', function($scope, $rootScope, $stateParams) {
-    console.log($rootScope.eventRow);
-    $scope.Event = $rootScope.eventRow;
-  }
-]);
-
 App.controller('eventSimulatorController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', 'simulatorFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, simulatorFactory) {
     $scope.Vehicles = null;
@@ -6284,6 +6277,13 @@ App.controller('eventSimulatorController', [
   }
 ]);
 
+App.controller('eventDetailController', [
+  '$scope', '$rootScope', '$stateParams', function($scope, $rootScope, $stateParams) {
+    console.log($rootScope.eventRow);
+    $scope.Event = $rootScope.eventRow;
+  }
+]);
+
 App.controller('exportEventsController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
     $scope.row = $rootScope["tripRow"];
@@ -6439,7 +6439,8 @@ App.controller('foChooseDealerController', [
 App.controller('foOnboardingController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote2', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', 'SerenityModels', '$state', 'localStorage', function($scope, $rootScope, $stateParams, mojioRemote2, mojioLocal, mojioGlobal, toaster, $filter, SerenityModels, $state, localStorage) {
     var getMojios, getUser, getVehicles;
-    if (localStorage.get("Dealer") === null) {
+    $scope.dealer = localStorage.get("Dealer");
+    if ($scope.dealer === null) {
       $state.go("fonboarding.choosedealer", {});
     }
     $scope.ReceivedData = 0;
@@ -6481,13 +6482,9 @@ App.controller('foOnboardingController', [
     getMojios();
     getVehicles();
     $scope.StartOperation = function() {
-      var FinishStep, dealer, i, j, len, len1, m, pdata, ref, ref1, v;
-      dealer = localStorage.get("Dealer");
-      if (dealer === null) {
-        $state.go("fonboarding.choosedealer", {});
-      }
+      var FinishStep, i, j, len, len1, m, pdata, ref, ref1, v;
       pdata = {
-        "GroupId": dealer.MojioGroupId,
+        "GroupId": $scope.dealer.MojioGroupId,
         "Permissions": ["read"]
       };
       mojioRemote2.POST({
@@ -6538,36 +6535,6 @@ App.controller('foOnboardingController', [
   }
 ]);
 
-App.controller('importDevicesController', [
-  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
-    $scope.data = {
-      Description: '',
-      Name: '',
-      deviceList: ''
-    };
-    $scope.importData = function() {
-      var data;
-      data = {
-        Description: $scope.data,
-        Name: $scope.data.Name,
-        RequestData: $scope.data.deviceList.split('\r'),
-        Type: 'Operation'
-      };
-      return mojioRemote.POST("mojios/mojioinventory", data, function(result) {
-        return toaster.success({
-          title: "Import Device",
-          body: "Import Device Successfully"
-        });
-      }, function() {
-        return toaster.error({
-          title: "Import Device",
-          body: "Error Importing Device"
-        });
-      });
-    };
-  }
-]);
-
 App.controller('importSimsController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
     $scope.data = {
@@ -6606,289 +6573,32 @@ App.controller('importSimsController', [
   }
 ]);
 
-App.controller('manageAppsController', [
+App.controller('importDevicesController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
-    $scope.fieldDesc = [
-      {
-        FieldName: 'Name',
-        FieldTitle: 'Application Name'
-      }, {
-        FieldName: 'Description',
-        FieldTitle: 'Application Description'
-      }, {
-        FieldName: 'RedirectUris',
-        FieldTitle: 'RedirectUris'
-      }
-    ];
-    $scope.NewApp = {
-      Type: "App",
-      Name: "",
-      Description: "",
-      ApplicationType: "Web",
-      CreationDate: "",
-      Downloads: 0,
-      RedirectUris: [""],
-      _deleted: false,
-      _id: ""
+    $scope.data = {
+      Description: '',
+      Name: '',
+      deviceList: ''
     };
-    $scope.Data = {};
-    $scope.deleteMojio = function(row) {
-      alert(1);
-      $scope.$$childHead.newSearch(0);
-    };
-    $scope.editMojio = function(row) {
-      alert($scope.Data.NewData);
-    };
-    $scope.CreateApp = function() {
+    $scope.importData = function() {
       var data;
-      data = {};
-      return mojioRemote.POST("Apps/", $scope.NewApp, function(result) {
-        toaster.success({
-          title: "Create Application",
-          body: "Create Application Successfully"
-        });
-        return $scope.$$childHead.newSearch(0);
-      }, function() {
-        return toaster.error({
-          title: "Create Application",
-          body: "Create Application was unsuccessful"
-        });
-      });
-    };
-    return $scope.showAppIDE = function(row) {
-      $state.go("dev.appide", {
-        id: row._id
-      });
-    };
-  }
-]);
-
-App.controller('manageDeviceController', [
-  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', '$http', 'myMojioFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, $http, myMojioFactory) {
-    var showImage;
-    $scope.showClaim = false;
-    $scope.ShowAddNewDevice = function() {
-      $scope.showClaim = true;
-    };
-    $scope.FileContent = null;
-    $scope.File = null;
-    $scope.$watch('FileContent', function(newValue, oldValue) {
-      var base64;
-      if (newValue === null) {
-        return;
-      }
-      base64 = '"' + $scope.FileContent.split(',')[1] + '"';
-      mojioRemote.POST("Users/" + mojioGlobal.data.user_data.id + "/Image", base64, function() {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.uploadImage.success.title'),
-          body: $filter('translate')('mymojio_account.uploadImage.success.body')
-        });
-        showImage();
-        return mojioGlobal.getUserPic();
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.uploadImage.error.title'),
-          body: $filter('translate')('mymojio_account.uploadImage.error.body')
-        });
-      });
-    });
-    $scope.Data = {
-      IMEI: ""
-    };
-    showImage = function() {
-      $scope.UserPicExist = false;
-      return mojioRemote.GETBlob("Users/" + mojioGlobal.data.user_data.id + "/Image?size=200", null, null, null, null, function(blob) {
-        var img;
-        img = document.getElementById('UserPic');
-        img.onload = function(e) {
-          return window.URL.revokeObjectURL(img.src);
-        };
-        img.src = window.URL.createObjectURL(blob);
-        return $scope.UserPicExist = true;
-      });
-    };
-    showImage();
-    $scope.me = {};
-    $scope.pwd = {
-      Current: '',
-      NewPassword: ''
-    };
-    mojioRemote.GET("Users/Me", null, null, null, null, function(result) {
-      return $scope.me = result;
-    });
-    $scope.SaveUserInfo = function(isValid) {
-      var data;
-      if (!isValid) {
-        toaster.error({
-          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
-          body: $filter('translate')('mymojio_account.SaveUserInformation.error.invalidBody')
-        });
-      }
       data = {
-        Type: "User",
-        _id: $scope.me._id,
-        UserName: $scope.me.UserName,
-        FirstName: $scope.me.FirstName,
-        LastName: $scope.me.LastName,
-        Email: $scope.me.Email
+        Description: $scope.data,
+        Name: $scope.data.Name,
+        RequestData: $scope.data.deviceList.split('\r'),
+        Type: 'Operation'
       };
-      mojioRemote.PUT("Users/" + $scope.me._id, data, function(result) {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.SaveUserInformation.success.title'),
-          body: $filter('translate')('mymojio_account.SaveUserInformation.success.body')
-        });
-        return $rootScope.user.name = $scope.me.UserName;
-      }, function(result) {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
-          body: $filter('translate')('mymojio_account.SaveUserInformation.error.body') + " - " + result
-        });
-      });
-    };
-    $scope.changePassword = function(isValid) {
-      var data;
-      if (!isValid) {
-        return;
-      }
-      data = {
-        OldPassword: $scope.pwd.Current,
-        NewPassword: $scope.pwd.NewPassword
-      };
-      mojioRemote.PUT("Users/" + $scope.me._id + "/Password", data, function(result) {
+      return mojioRemote.POST("mojios/mojioinventory", data, function(result) {
         return toaster.success({
-          title: $filter('translate')('mymojio_account.ChangePassword.success.title'),
-          body: $filter('translate')('mymojio_account.ChangePassword.success.body')
+          title: "Import Device",
+          body: "Import Device Successfully"
         });
       }, function() {
         return toaster.error({
-          title: $filter('translate')('mymojio_account.ChangePassword.error.title'),
-          body: $filter('translate')('mymojio_account.ChangePassword.error.body')
+          title: "Import Device",
+          body: "Error Importing Device"
         });
       });
-    };
-    $scope.ClaimOnProcess = false;
-    $scope.claim = function(refreshCallback) {
-      if ($scope.ClaimOnProcess) {
-        return;
-      }
-      $scope.ClaimOnProcess = true;
-      mojioRemote.PUT("Mojios/" + $scope.Data.IMEI + "/User", {}, function(result) {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.ClaimDevice.success.title'),
-          body: $filter('translate')('mymojio_account.ClaimDevice.success.body')
-        });
-        refreshCallback(0);
-        $scope.showClaim = false;
-        return $scope.ClaimOnProcess = false;
-      }, function() {
-        $scope.ClaimOnProcess = false;
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.ClaimDevice.error.title'),
-          body: $filter('translate')('mymojio_account.ClaimDevice.error.body')
-        });
-      });
-    };
-    $scope.updateDevice = function(row) {
-      mojioRemote.PUT("Mojios/" + row._id, row, function(result) {
-        return toaster.success({
-          title: $filter('translate')('mymojio_account.RenameDevice.success.title'),
-          body: $filter('translate')('mymojio_account.RenameDevice.success.body')
-        });
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.RenameDevice.error.title'),
-          body: $filter('translate')('mymojio_account.RenameDevice.error.body')
-        });
-      });
-    };
-    $scope.updateVehicle = function(row) {
-      mojioRemote.PUT("Vehicles/" + row._id, row, function(result) {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.UpdateVehicle.success.title'),
-          body: $filter('translate')('mymojio_account.UpdateVehicle.success.body')
-        });
-        return myMojioFactory.forcePrepareData(function() {
-          var i, len, ref, results, v;
-          console.table(myMojioFactory.Content.Vehicles);
-          ref = myMojioFactory.Content.Vehicles;
-          results = [];
-          for (i = 0, len = ref.length; i < len; i++) {
-            v = ref[i];
-            results.push(console.log(v.Name));
-          }
-          return results;
-        });
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.UpdateVehicle.error.title'),
-          body: $filter('translate')('mymojio_account.UpdateVehicle.error.body')
-        });
-      });
-    };
-    $scope.CarStatus = function(v) {
-      var d, t;
-      if (typeof v === "undefined" || v === null || v.LastContactTime === null) {
-        return $filter('translate')('common.CarStatus.Unknown');
-      }
-      t = new Date(v.LastContactTime);
-      d = ((new Date()) - t) / (1000 * 60 * 60 * 24);
-      if (d > 1) {
-        return $filter('translate')('common.CarStatus.Unknown');
-      }
-      if (v.IgnitionOn) {
-        return $filter('translate')('common.CarStatus.Driving');
-      }
-      return $filter('translate')('common.CarStatus.Parked');
-    };
-    $scope.SelectedVehicle = 0;
-    $scope.selectVehicle = function(row) {
-      if (typeof row.selected === 'undefined' || row.selected === false) {
-        if ($scope.SelectedVehicle === 2) {
-          return;
-        }
-        row.selected = true;
-        $scope.SelectedVehicle++;
-      } else {
-        row.selected = false;
-        $scope.SelectedVehicle--;
-      }
-    };
-    $scope.MergeVehicles = function(data, refreshCallback) {
-      var httpOptions, i, id1, id2, len, v;
-      id1 = null;
-      id2 = null;
-      for (i = 0, len = data.length; i < len; i++) {
-        v = data[i];
-        if (v.selected) {
-          if (id1 === null) {
-            id1 = v._id;
-          } else {
-            id2 = v._id;
-            break;
-          }
-        }
-      }
-      httpOptions = {
-        method: 'DELETE',
-        url: mojioGlobal.apiUrl().replace('v1/', 'v2/') + 'vehicles/' + id1 + '?actual=' + id2,
-        headers: mojioGlobal.CreateHeaders().headers
-      };
-      $http(httpOptions).success(function(response) {
-        refreshCallback(0);
-        $scope.SelectedVehicle = 0;
-        return toaster.success({
-          title: $filter('translate')('mymojio_account.MergeVehicle.success.title'),
-          body: $filter('translate')('mymojio_account.MergeVehicle.success.body')
-        });
-      }).error(function(response) {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.MergeVehicle.error.title'),
-          body: $filter('translate')('mymojio_account.MergeVehicle.error.body')
-        });
-      });
-    };
-    $scope.PrintInConsole = function(data) {
-      return console.log(data);
     };
   }
 ]);
@@ -11243,6 +10953,293 @@ App.controller('tcuVisualizer', [
   }
 ]);
 
+App.controller('manageDeviceController', [
+  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', '$http', 'myMojioFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, $http, myMojioFactory) {
+    var showImage;
+    $scope.showClaim = false;
+    $scope.ShowAddNewDevice = function() {
+      $scope.showClaim = true;
+    };
+    $scope.FileContent = null;
+    $scope.File = null;
+    $scope.$watch('FileContent', function(newValue, oldValue) {
+      var base64;
+      if (newValue === null) {
+        return;
+      }
+      base64 = '"' + $scope.FileContent.split(',')[1] + '"';
+      mojioRemote.POST("Users/" + mojioGlobal.data.user_data.id + "/Image", base64, function() {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.uploadImage.success.title'),
+          body: $filter('translate')('mymojio_account.uploadImage.success.body')
+        });
+        showImage();
+        return mojioGlobal.getUserPic();
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.uploadImage.error.title'),
+          body: $filter('translate')('mymojio_account.uploadImage.error.body')
+        });
+      });
+    });
+    $scope.Data = {
+      IMEI: ""
+    };
+    showImage = function() {
+      $scope.UserPicExist = false;
+      return mojioRemote.GETBlob("Users/" + mojioGlobal.data.user_data.id + "/Image?size=200", null, null, null, null, function(blob) {
+        var img;
+        img = document.getElementById('UserPic');
+        img.onload = function(e) {
+          return window.URL.revokeObjectURL(img.src);
+        };
+        img.src = window.URL.createObjectURL(blob);
+        return $scope.UserPicExist = true;
+      });
+    };
+    showImage();
+    $scope.me = {};
+    $scope.pwd = {
+      Current: '',
+      NewPassword: ''
+    };
+    mojioRemote.GET("Users/Me", null, null, null, null, function(result) {
+      return $scope.me = result;
+    });
+    $scope.SaveUserInfo = function(isValid) {
+      var data;
+      if (!isValid) {
+        toaster.error({
+          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
+          body: $filter('translate')('mymojio_account.SaveUserInformation.error.invalidBody')
+        });
+      }
+      data = {
+        Type: "User",
+        _id: $scope.me._id,
+        UserName: $scope.me.UserName,
+        FirstName: $scope.me.FirstName,
+        LastName: $scope.me.LastName,
+        Email: $scope.me.Email
+      };
+      mojioRemote.PUT("Users/" + $scope.me._id, data, function(result) {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.SaveUserInformation.success.title'),
+          body: $filter('translate')('mymojio_account.SaveUserInformation.success.body')
+        });
+        return $rootScope.user.name = $scope.me.UserName;
+      }, function(result) {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
+          body: $filter('translate')('mymojio_account.SaveUserInformation.error.body') + " - " + result
+        });
+      });
+    };
+    $scope.changePassword = function(isValid) {
+      var data;
+      if (!isValid) {
+        return;
+      }
+      data = {
+        OldPassword: $scope.pwd.Current,
+        NewPassword: $scope.pwd.NewPassword
+      };
+      mojioRemote.PUT("Users/" + $scope.me._id + "/Password", data, function(result) {
+        return toaster.success({
+          title: $filter('translate')('mymojio_account.ChangePassword.success.title'),
+          body: $filter('translate')('mymojio_account.ChangePassword.success.body')
+        });
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.ChangePassword.error.title'),
+          body: $filter('translate')('mymojio_account.ChangePassword.error.body')
+        });
+      });
+    };
+    $scope.ClaimOnProcess = false;
+    $scope.claim = function(refreshCallback) {
+      if ($scope.ClaimOnProcess) {
+        return;
+      }
+      $scope.ClaimOnProcess = true;
+      mojioRemote.PUT("Mojios/" + $scope.Data.IMEI + "/User", {}, function(result) {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.ClaimDevice.success.title'),
+          body: $filter('translate')('mymojio_account.ClaimDevice.success.body')
+        });
+        refreshCallback(0);
+        $scope.showClaim = false;
+        return $scope.ClaimOnProcess = false;
+      }, function() {
+        $scope.ClaimOnProcess = false;
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.ClaimDevice.error.title'),
+          body: $filter('translate')('mymojio_account.ClaimDevice.error.body')
+        });
+      });
+    };
+    $scope.updateDevice = function(row) {
+      mojioRemote.PUT("Mojios/" + row._id, row, function(result) {
+        return toaster.success({
+          title: $filter('translate')('mymojio_account.RenameDevice.success.title'),
+          body: $filter('translate')('mymojio_account.RenameDevice.success.body')
+        });
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.RenameDevice.error.title'),
+          body: $filter('translate')('mymojio_account.RenameDevice.error.body')
+        });
+      });
+    };
+    $scope.updateVehicle = function(row) {
+      mojioRemote.PUT("Vehicles/" + row._id, row, function(result) {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.UpdateVehicle.success.title'),
+          body: $filter('translate')('mymojio_account.UpdateVehicle.success.body')
+        });
+        return myMojioFactory.forcePrepareData(function() {
+          var i, len, ref, results, v;
+          console.table(myMojioFactory.Content.Vehicles);
+          ref = myMojioFactory.Content.Vehicles;
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            v = ref[i];
+            results.push(console.log(v.Name));
+          }
+          return results;
+        });
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.UpdateVehicle.error.title'),
+          body: $filter('translate')('mymojio_account.UpdateVehicle.error.body')
+        });
+      });
+    };
+    $scope.CarStatus = function(v) {
+      var d, t;
+      if (typeof v === "undefined" || v === null || v.LastContactTime === null) {
+        return $filter('translate')('common.CarStatus.Unknown');
+      }
+      t = new Date(v.LastContactTime);
+      d = ((new Date()) - t) / (1000 * 60 * 60 * 24);
+      if (d > 1) {
+        return $filter('translate')('common.CarStatus.Unknown');
+      }
+      if (v.IgnitionOn) {
+        return $filter('translate')('common.CarStatus.Driving');
+      }
+      return $filter('translate')('common.CarStatus.Parked');
+    };
+    $scope.SelectedVehicle = 0;
+    $scope.selectVehicle = function(row) {
+      if (typeof row.selected === 'undefined' || row.selected === false) {
+        if ($scope.SelectedVehicle === 2) {
+          return;
+        }
+        row.selected = true;
+        $scope.SelectedVehicle++;
+      } else {
+        row.selected = false;
+        $scope.SelectedVehicle--;
+      }
+    };
+    $scope.MergeVehicles = function(data, refreshCallback) {
+      var httpOptions, i, id1, id2, len, v;
+      id1 = null;
+      id2 = null;
+      for (i = 0, len = data.length; i < len; i++) {
+        v = data[i];
+        if (v.selected) {
+          if (id1 === null) {
+            id1 = v._id;
+          } else {
+            id2 = v._id;
+            break;
+          }
+        }
+      }
+      httpOptions = {
+        method: 'DELETE',
+        url: mojioGlobal.apiUrl().replace('v1/', 'v2/') + 'vehicles/' + id1 + '?actual=' + id2,
+        headers: mojioGlobal.CreateHeaders().headers
+      };
+      $http(httpOptions).success(function(response) {
+        refreshCallback(0);
+        $scope.SelectedVehicle = 0;
+        return toaster.success({
+          title: $filter('translate')('mymojio_account.MergeVehicle.success.title'),
+          body: $filter('translate')('mymojio_account.MergeVehicle.success.body')
+        });
+      }).error(function(response) {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.MergeVehicle.error.title'),
+          body: $filter('translate')('mymojio_account.MergeVehicle.error.body')
+        });
+      });
+    };
+    $scope.PrintInConsole = function(data) {
+      return console.log(data);
+    };
+  }
+]);
+
+App.controller('manageAppsController', [
+  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
+    $scope.fieldDesc = [
+      {
+        FieldName: 'Name',
+        FieldTitle: 'Application Name'
+      }, {
+        FieldName: 'Description',
+        FieldTitle: 'Application Description'
+      }, {
+        FieldName: 'RedirectUris',
+        FieldTitle: 'RedirectUris'
+      }
+    ];
+    $scope.NewApp = {
+      Type: "App",
+      Name: "",
+      Description: "",
+      ApplicationType: "Web",
+      CreationDate: "",
+      Downloads: 0,
+      RedirectUris: [""],
+      _deleted: false,
+      _id: ""
+    };
+    $scope.Data = {};
+    $scope.deleteMojio = function(row) {
+      alert(1);
+      $scope.$$childHead.newSearch(0);
+    };
+    $scope.editMojio = function(row) {
+      alert($scope.Data.NewData);
+    };
+    $scope.CreateApp = function() {
+      var data;
+      data = {};
+      return mojioRemote.POST("Apps/", $scope.NewApp, function(result) {
+        toaster.success({
+          title: "Create Application",
+          body: "Create Application Successfully"
+        });
+        return $scope.$$childHead.newSearch(0);
+      }, function() {
+        return toaster.error({
+          title: "Create Application",
+          body: "Create Application was unsuccessful"
+        });
+      });
+    };
+    return $scope.showAppIDE = function(row) {
+      $state.go("dev.appide", {
+        id: row._id
+      });
+    };
+  }
+]);
+
 App.filter('fuelEfficiencyScore', [
   '$filter', function($filter) {
     return function(input, type) {
@@ -11516,28 +11513,6 @@ App.filter('timeago', function() {
     return ago(new Date(idate));
   };
 });
-
-App.directive('gearAdminMojio', [
-  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
-    return {
-      restrict: 'EA',
-      templateUrl: 'gear_admin_mojio.html',
-      controller: ["$rootScope", "$scope", function($rootScope, $scope) {
-        var getMojio;
-        getMojio = function() {
-          return mojioRemote.GET("Mojios/" + $scope.AllData.SelectedVehicle.MojioId, null, null, null, null, function(result) {
-            return $scope.Mojio = result;
-          });
-        };
-        $scope.Mojio = {};
-        $scope.$watch('AllData.SelectedVehicle', function() {
-          return getMojio();
-        });
-      }],
-      link: function($rootScope, scope, element, attrs) {}
-    };
-  }
-]);
 
 App.directive('gearAdminVehicle', [
   '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
@@ -13346,6 +13321,67 @@ App.directive('serviceOfferEdit', [
   }
 ]);
 
+App.directive('gearAdminMojio', [
+  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
+    return {
+      restrict: 'EA',
+      templateUrl: 'gear_admin_mojio.html',
+      controller: ["$rootScope", "$scope", function($rootScope, $scope) {
+        var getMojio;
+        getMojio = function() {
+          return mojioRemote.GET("Mojios/" + $scope.AllData.SelectedVehicle.MojioId, null, null, null, null, function(result) {
+            return $scope.Mojio = result;
+          });
+        };
+        $scope.Mojio = {};
+        $scope.$watch('AllData.SelectedVehicle', function() {
+          return getMojio();
+        });
+      }],
+      link: function($rootScope, scope, element, attrs) {}
+    };
+  }
+]);
+
+App.directive('cmsBreadcrumb', [
+  'contentFactory', function(contentFactory) {
+    return {
+      restrict: 'EA',
+      templateUrl: 'cms_breadcrumb.html',
+      controller: ["$scope", function($scope) {
+        $scope.Content = contentFactory.Content;
+        $scope.Child = contentFactory.Child;
+        $scope.Parent = contentFactory.Parent;
+        $scope.MenuNodes = contentFactory.MenuNodes;
+        return $scope.GotoNode = contentFactory.GotoNode;
+      }],
+      link: function(scope, element, attrs) {}
+    };
+  }
+]);
+
+App.directive('cmsMenu', [
+  'contentFactory', function(contentFactory) {
+    return {
+      scope: {
+        viewmode: '=',
+        nodes: '=',
+        menuconfig: '='
+      },
+      restrict: 'EA',
+      templateUrl: 'cms_menu.html',
+      controller: ["$scope", function($scope) {
+        $scope.Content = contentFactory.Content;
+        $scope.Child = contentFactory.Child;
+        $scope.Parent = contentFactory.Parent;
+        $scope.MenuNodes = contentFactory.MenuNodes;
+        return $scope.GotoNode = contentFactory.GotoNode;
+      }],
+      link: function(scope, element, attrs) {}
+    };
+  }
+]);
+
 App.directive('cmsMenuListview', [
   'contentFactory', function(contentFactory) {
     return {
@@ -13388,33 +13424,15 @@ App.directive('cmsMenuTile', [
   }
 ]);
 
-App.directive('cmsMenu', [
+App.directive('cmsMenuTreeview', [
   'contentFactory', function(contentFactory) {
     return {
       scope: {
-        viewmode: '=',
         nodes: '=',
         menuconfig: '='
       },
       restrict: 'EA',
-      templateUrl: 'cms_menu.html',
-      controller: ["$scope", function($scope) {
-        $scope.Content = contentFactory.Content;
-        $scope.Child = contentFactory.Child;
-        $scope.Parent = contentFactory.Parent;
-        $scope.MenuNodes = contentFactory.MenuNodes;
-        return $scope.GotoNode = contentFactory.GotoNode;
-      }],
-      link: function(scope, element, attrs) {}
-    };
-  }
-]);
-
-App.directive('cmsBreadcrumb', [
-  'contentFactory', function(contentFactory) {
-    return {
-      restrict: 'EA',
-      templateUrl: 'cms_breadcrumb.html',
+      templateUrl: 'cms_menu_treeview.html',
       controller: ["$scope", function($scope) {
         $scope.Content = contentFactory.Content;
         $scope.Child = contentFactory.Child;
@@ -13445,27 +13463,6 @@ App.directive('deviceGrid', [
         "delete": '='
       },
       controller: 'mojioGridController',
-      link: function(scope, element, attrs) {}
-    };
-  }
-]);
-
-App.directive('cmsMenuTreeview', [
-  'contentFactory', function(contentFactory) {
-    return {
-      scope: {
-        nodes: '=',
-        menuconfig: '='
-      },
-      restrict: 'EA',
-      templateUrl: 'cms_menu_treeview.html',
-      controller: ["$scope", function($scope) {
-        $scope.Content = contentFactory.Content;
-        $scope.Child = contentFactory.Child;
-        $scope.Parent = contentFactory.Parent;
-        $scope.MenuNodes = contentFactory.MenuNodes;
-        return $scope.GotoNode = contentFactory.GotoNode;
-      }],
       link: function(scope, element, attrs) {}
     };
   }
