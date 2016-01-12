@@ -6100,6 +6100,13 @@ App.controller('dummyVehiclesController', [
   }
 ]);
 
+App.controller('eventDetailController', [
+  '$scope', '$rootScope', '$stateParams', function($scope, $rootScope, $stateParams) {
+    console.log($rootScope.eventRow);
+    $scope.Event = $rootScope.eventRow;
+  }
+]);
+
 App.controller('eventSimulatorController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', 'simulatorFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, simulatorFactory) {
     $scope.Vehicles = null;
@@ -6274,13 +6281,6 @@ App.controller('eventSimulatorController', [
       sEvent.EventType = $scope.Data.EventType;
       $scope.Events.push(sEvent);
     };
-  }
-]);
-
-App.controller('eventDetailController', [
-  '$scope', '$rootScope', '$stateParams', function($scope, $rootScope, $stateParams) {
-    console.log($rootScope.eventRow);
-    $scope.Event = $rootScope.eventRow;
   }
 ]);
 
@@ -6535,6 +6535,36 @@ App.controller('foOnboardingController', [
   }
 ]);
 
+App.controller('importDevicesController', [
+  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
+    $scope.data = {
+      Description: '',
+      Name: '',
+      deviceList: ''
+    };
+    $scope.importData = function() {
+      var data;
+      data = {
+        Description: $scope.data,
+        Name: $scope.data.Name,
+        RequestData: $scope.data.deviceList.split('\r'),
+        Type: 'Operation'
+      };
+      return mojioRemote.POST("mojios/mojioinventory", data, function(result) {
+        return toaster.success({
+          title: "Import Device",
+          body: "Import Device Successfully"
+        });
+      }, function() {
+        return toaster.error({
+          title: "Import Device",
+          body: "Error Importing Device"
+        });
+      });
+    };
+  }
+]);
+
 App.controller('importSimsController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
     $scope.data = {
@@ -6573,32 +6603,289 @@ App.controller('importSimsController', [
   }
 ]);
 
-App.controller('importDevicesController', [
+App.controller('manageAppsController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
-    $scope.data = {
-      Description: '',
-      Name: '',
-      deviceList: ''
+    $scope.fieldDesc = [
+      {
+        FieldName: 'Name',
+        FieldTitle: 'Application Name'
+      }, {
+        FieldName: 'Description',
+        FieldTitle: 'Application Description'
+      }, {
+        FieldName: 'RedirectUris',
+        FieldTitle: 'RedirectUris'
+      }
+    ];
+    $scope.NewApp = {
+      Type: "App",
+      Name: "",
+      Description: "",
+      ApplicationType: "Web",
+      CreationDate: "",
+      Downloads: 0,
+      RedirectUris: [""],
+      _deleted: false,
+      _id: ""
     };
-    $scope.importData = function() {
+    $scope.Data = {};
+    $scope.deleteMojio = function(row) {
+      alert(1);
+      $scope.$$childHead.newSearch(0);
+    };
+    $scope.editMojio = function(row) {
+      alert($scope.Data.NewData);
+    };
+    $scope.CreateApp = function() {
       var data;
+      data = {};
+      return mojioRemote.POST("Apps/", $scope.NewApp, function(result) {
+        toaster.success({
+          title: "Create Application",
+          body: "Create Application Successfully"
+        });
+        return $scope.$$childHead.newSearch(0);
+      }, function() {
+        return toaster.error({
+          title: "Create Application",
+          body: "Create Application was unsuccessful"
+        });
+      });
+    };
+    return $scope.showAppIDE = function(row) {
+      $state.go("dev.appide", {
+        id: row._id
+      });
+    };
+  }
+]);
+
+App.controller('manageDeviceController', [
+  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', '$http', 'myMojioFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, $http, myMojioFactory) {
+    var showImage;
+    $scope.showClaim = false;
+    $scope.ShowAddNewDevice = function() {
+      $scope.showClaim = true;
+    };
+    $scope.FileContent = null;
+    $scope.File = null;
+    $scope.$watch('FileContent', function(newValue, oldValue) {
+      var base64;
+      if (newValue === null) {
+        return;
+      }
+      base64 = '"' + $scope.FileContent.split(',')[1] + '"';
+      mojioRemote.POST("Users/" + mojioGlobal.data.user_data.id + "/Image", base64, function() {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.uploadImage.success.title'),
+          body: $filter('translate')('mymojio_account.uploadImage.success.body')
+        });
+        showImage();
+        return mojioGlobal.getUserPic();
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.uploadImage.error.title'),
+          body: $filter('translate')('mymojio_account.uploadImage.error.body')
+        });
+      });
+    });
+    $scope.Data = {
+      IMEI: ""
+    };
+    showImage = function() {
+      $scope.UserPicExist = false;
+      return mojioRemote.GETBlob("Users/" + mojioGlobal.data.user_data.id + "/Image?size=200", null, null, null, null, function(blob) {
+        var img;
+        img = document.getElementById('UserPic');
+        img.onload = function(e) {
+          return window.URL.revokeObjectURL(img.src);
+        };
+        img.src = window.URL.createObjectURL(blob);
+        return $scope.UserPicExist = true;
+      });
+    };
+    showImage();
+    $scope.me = {};
+    $scope.pwd = {
+      Current: '',
+      NewPassword: ''
+    };
+    mojioRemote.GET("Users/Me", null, null, null, null, function(result) {
+      return $scope.me = result;
+    });
+    $scope.SaveUserInfo = function(isValid) {
+      var data;
+      if (!isValid) {
+        toaster.error({
+          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
+          body: $filter('translate')('mymojio_account.SaveUserInformation.error.invalidBody')
+        });
+      }
       data = {
-        Description: $scope.data,
-        Name: $scope.data.Name,
-        RequestData: $scope.data.deviceList.split('\r'),
-        Type: 'Operation'
+        Type: "User",
+        _id: $scope.me._id,
+        UserName: $scope.me.UserName,
+        FirstName: $scope.me.FirstName,
+        LastName: $scope.me.LastName,
+        Email: $scope.me.Email
       };
-      return mojioRemote.POST("mojios/mojioinventory", data, function(result) {
+      mojioRemote.PUT("Users/" + $scope.me._id, data, function(result) {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.SaveUserInformation.success.title'),
+          body: $filter('translate')('mymojio_account.SaveUserInformation.success.body')
+        });
+        return $rootScope.user.name = $scope.me.UserName;
+      }, function(result) {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
+          body: $filter('translate')('mymojio_account.SaveUserInformation.error.body') + " - " + result
+        });
+      });
+    };
+    $scope.changePassword = function(isValid) {
+      var data;
+      if (!isValid) {
+        return;
+      }
+      data = {
+        OldPassword: $scope.pwd.Current,
+        NewPassword: $scope.pwd.NewPassword
+      };
+      mojioRemote.PUT("Users/" + $scope.me._id + "/Password", data, function(result) {
         return toaster.success({
-          title: "Import Device",
-          body: "Import Device Successfully"
+          title: $filter('translate')('mymojio_account.ChangePassword.success.title'),
+          body: $filter('translate')('mymojio_account.ChangePassword.success.body')
         });
       }, function() {
         return toaster.error({
-          title: "Import Device",
-          body: "Error Importing Device"
+          title: $filter('translate')('mymojio_account.ChangePassword.error.title'),
+          body: $filter('translate')('mymojio_account.ChangePassword.error.body')
         });
       });
+    };
+    $scope.ClaimOnProcess = false;
+    $scope.claim = function(refreshCallback) {
+      if ($scope.ClaimOnProcess) {
+        return;
+      }
+      $scope.ClaimOnProcess = true;
+      mojioRemote.PUT("Mojios/" + $scope.Data.IMEI + "/User", {}, function(result) {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.ClaimDevice.success.title'),
+          body: $filter('translate')('mymojio_account.ClaimDevice.success.body')
+        });
+        refreshCallback(0);
+        $scope.showClaim = false;
+        return $scope.ClaimOnProcess = false;
+      }, function() {
+        $scope.ClaimOnProcess = false;
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.ClaimDevice.error.title'),
+          body: $filter('translate')('mymojio_account.ClaimDevice.error.body')
+        });
+      });
+    };
+    $scope.updateDevice = function(row) {
+      mojioRemote.PUT("Mojios/" + row._id, row, function(result) {
+        return toaster.success({
+          title: $filter('translate')('mymojio_account.RenameDevice.success.title'),
+          body: $filter('translate')('mymojio_account.RenameDevice.success.body')
+        });
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.RenameDevice.error.title'),
+          body: $filter('translate')('mymojio_account.RenameDevice.error.body')
+        });
+      });
+    };
+    $scope.updateVehicle = function(row) {
+      mojioRemote.PUT("Vehicles/" + row._id, row, function(result) {
+        toaster.success({
+          title: $filter('translate')('mymojio_account.UpdateVehicle.success.title'),
+          body: $filter('translate')('mymojio_account.UpdateVehicle.success.body')
+        });
+        return myMojioFactory.forcePrepareData(function() {
+          var i, len, ref, results, v;
+          console.table(myMojioFactory.Content.Vehicles);
+          ref = myMojioFactory.Content.Vehicles;
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            v = ref[i];
+            results.push(console.log(v.Name));
+          }
+          return results;
+        });
+      }, function() {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.UpdateVehicle.error.title'),
+          body: $filter('translate')('mymojio_account.UpdateVehicle.error.body')
+        });
+      });
+    };
+    $scope.CarStatus = function(v) {
+      var d, t;
+      if (typeof v === "undefined" || v === null || v.LastContactTime === null) {
+        return $filter('translate')('common.CarStatus.Unknown');
+      }
+      t = new Date(v.LastContactTime);
+      d = ((new Date()) - t) / (1000 * 60 * 60 * 24);
+      if (d > 1) {
+        return $filter('translate')('common.CarStatus.Unknown');
+      }
+      if (v.IgnitionOn) {
+        return $filter('translate')('common.CarStatus.Driving');
+      }
+      return $filter('translate')('common.CarStatus.Parked');
+    };
+    $scope.SelectedVehicle = 0;
+    $scope.selectVehicle = function(row) {
+      if (typeof row.selected === 'undefined' || row.selected === false) {
+        if ($scope.SelectedVehicle === 2) {
+          return;
+        }
+        row.selected = true;
+        $scope.SelectedVehicle++;
+      } else {
+        row.selected = false;
+        $scope.SelectedVehicle--;
+      }
+    };
+    $scope.MergeVehicles = function(data, refreshCallback) {
+      var httpOptions, i, id1, id2, len, v;
+      id1 = null;
+      id2 = null;
+      for (i = 0, len = data.length; i < len; i++) {
+        v = data[i];
+        if (v.selected) {
+          if (id1 === null) {
+            id1 = v._id;
+          } else {
+            id2 = v._id;
+            break;
+          }
+        }
+      }
+      httpOptions = {
+        method: 'DELETE',
+        url: mojioGlobal.apiUrl().replace('v1/', 'v2/') + 'vehicles/' + id1 + '?actual=' + id2,
+        headers: mojioGlobal.CreateHeaders().headers
+      };
+      $http(httpOptions).success(function(response) {
+        refreshCallback(0);
+        $scope.SelectedVehicle = 0;
+        return toaster.success({
+          title: $filter('translate')('mymojio_account.MergeVehicle.success.title'),
+          body: $filter('translate')('mymojio_account.MergeVehicle.success.body')
+        });
+      }).error(function(response) {
+        return toaster.error({
+          title: $filter('translate')('mymojio_account.MergeVehicle.error.title'),
+          body: $filter('translate')('mymojio_account.MergeVehicle.error.body')
+        });
+      });
+    };
+    $scope.PrintInConsole = function(data) {
+      return console.log(data);
     };
   }
 ]);
@@ -6972,6 +7259,14 @@ App.controller('multiSimulatorController', [
   }
 ]);
 
+App.controller('mymojioSupportController', [
+  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
+    $scope.SendEmail = function() {
+      return window.location.href = "mailto:support@moj.io";
+    };
+  }
+]);
+
 App.controller('myMojioDashboardController', [
   '$modal', '$templateCache', '$sce', '$compile', '$rootScope', '$stateParams', '$scope', 'mojioRemote', 'localStorage', 'toaster', 'mojioGlobal', 'myMojioFactory', 'mojioGear', '$filter', '$injector', function($modal, $templateCache, $sce, $compile, $rootScope, $stateParams, $scope, mojioRemote, localStorage, toaster, mojioGlobal, myMojioFactory, mojioGear, $filter, $injector) {
     var preparePortal, tohash;
@@ -7156,14 +7451,6 @@ App.controller('myMojioDashboardController', [
       $scope.savePortalState();
     };
     return myMojioFactory.prepareData(preparePortal);
-  }
-]);
-
-App.controller('mymojioSupportController', [
-  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
-    $scope.SendEmail = function() {
-      return window.location.href = "mailto:support@moj.io";
-    };
   }
 ]);
 
@@ -9777,472 +10064,6 @@ App.controller('tempSim2ControllerOld', [
   }
 ]);
 
-App.controller('simpleSimulatorController', [
-  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', 'simulatorFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, simulatorFactory) {
-    var ChooseEventType, RandomEventTypes, myOptions, panoramaOptions, processSVData;
-    $scope.Settings = {
-      Title: 'New Trip Title',
-      Duration: 5,
-      NoOfEvents: 30,
-      RPM: {
-        Min: 300,
-        Max: 1200
-      },
-      Speed: {
-        Min: 30,
-        Max: 90
-      },
-      Fuel: {
-        Min: 70,
-        Max: 80
-      },
-      SpecialEventChance: 10,
-      Points: {
-        Start: null,
-        End: null,
-        WayPoint: []
-      },
-      CircularTrip: false,
-      Events: null
-    };
-    $scope.Marker = {
-      Start: null,
-      End: null,
-      WayPoint: []
-    };
-    $scope.Vehicle = {
-      Selected: null
-    };
-    $scope.Vehicles = null;
-    mojioRemote.GET("Users/" + mojioGlobal.data.user_data.id + "/Vehicles", 20, null, null, null, function(result) {
-      $scope.Vehicles = result.Data;
-      simulatorFactory.FixVehicleName($scope.Vehicles);
-      return $scope.Vehicle.Selected = $scope.Vehicles[0]._id;
-    });
-    $scope.SimulationMode = "Stop";
-    $scope.SimulationStep = 0;
-    $scope.SimulationTimer = null;
-    $scope.Info = {
-      EventsNo: 0,
-      LegsNo: 0,
-      StepsNo: 0,
-      LastImportantEvent: null,
-      LastEvent: null,
-      LastNetworkLatency: 0,
-      TotalNetworkLatency: 0,
-      AvgNetworkLatency: 0,
-      LastWaitBeforeSendingEvent: 0,
-      TotalWaitBeforeSendingEvent: 0
-    };
-    $scope.legs = null;
-    RandomEventTypes = [];
-    $scope.AllRandomEventTypes = {
-      "ConnectionLost": true,
-      "LowBattery": true,
-      "Accident": true,
-      "Acceleration": true,
-      "Deceleration": true
-    };
-    $scope.createMarker = function(latlng, name, html, color) {
-      var contentString, marker;
-      contentString = html;
-      marker = new google.maps.Marker({
-        position: latlng,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          strokeColor: color,
-          scale: 3
-        },
-        draggable: true,
-        map: $scope.map
-      });
-      return marker;
-    };
-    $scope.PointType = "s";
-    myOptions = {
-      zoom: 8,
-      center: new google.maps.LatLng(43.907787, -79.359741),
-      mapTypeControl: true,
-      mapTypeControlOptions: {
-        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
-      },
-      navigationControl: true,
-      mapTypeId: google.maps.MapTypeId.ROADMAP
-    };
-    $scope.map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
-    $scope.directionsDisplay = new google.maps.DirectionsRenderer();
-    $scope.directionsService = new google.maps.DirectionsService();
-    panoramaOptions = {
-      clickToGo: false,
-      disableDefaultUI: true
-    };
-    $scope.panorama = new google.maps.StreetViewPanorama(document.getElementById("pano"), panoramaOptions);
-    $scope.sv = new google.maps.StreetViewService();
-    $scope.map.setStreetView($scope.panorama);
-    $scope.SavePoints = function() {
-      var WayPoint, j, len, ref, wp;
-      if ($scope.Marker.Start) {
-        $scope.Settings.Points.Start = [$scope.Marker.Start.position.lat(), $scope.Marker.Start.position.lng()];
-      } else {
-        $scope.Settings.Points.Start = null;
-      }
-      if ($scope.Marker.End) {
-        $scope.Settings.Points.End = [$scope.Marker.End.position.lat(), $scope.Marker.End.position.lng()];
-      } else {
-        $scope.Settings.Points.End = null;
-      }
-      WayPoint = [];
-      ref = $scope.Marker.WayPoint;
-      for (j = 0, len = ref.length; j < len; j++) {
-        wp = ref[j];
-        WayPoint.push([wp.position.lat(), wp.position.lng()]);
-      }
-      $scope.Settings.Points.WayPoint = WayPoint;
-    };
-    $scope.LoadPoints = function() {
-      var AllPoints, LatLng, WayPoint, j, k, l, len, len1, len2, marker, op, ref, ref1, wp;
-      AllPoints = [];
-      if ($scope.Marker.Start) {
-        $scope.Marker.Start.setMap(null);
-        $scope.Marker.Start = null;
-      }
-      if ($scope.Settings.Points.Start) {
-        LatLng = new google.maps.LatLng($scope.Settings.Points.Start[0], $scope.Settings.Points.Start[1]);
-        $scope.Marker.Start = $scope.createMarker(LatLng, "Start Point", "Start Point", "blue");
-        AllPoints.push($scope.Marker.Start);
-      } else {
-        $scope.Marker.Start.setMap(null);
-        $scope.Marker.Start = null;
-      }
-      if ($scope.Marker.End) {
-        $scope.Marker.End.setMap(null);
-        $scope.Marker.End = null;
-      }
-      if ($scope.Settings.Points.End) {
-        LatLng = new google.maps.LatLng($scope.Settings.Points.End[0], $scope.Settings.Points.End[1]);
-        $scope.Marker.End = $scope.createMarker(LatLng, "End Point", "End Point", "red");
-        AllPoints.push($scope.Marker.End);
-      } else {
-        $scope.Marker.End.setMap(null);
-        $scope.Marker.End = null;
-      }
-      WayPoint = [];
-      ref = $scope.Marker.WayPoint;
-      for (j = 0, len = ref.length; j < len; j++) {
-        wp = ref[j];
-        wp.setMap(null);
-        wp = null;
-      }
-      $scope.Marker.WayPoint = [];
-      ref1 = $scope.Settings.Points.WayPoint;
-      for (k = 0, len1 = ref1.length; k < len1; k++) {
-        wp = ref1[k];
-        LatLng = new google.maps.LatLng(wp[0], wp[1]);
-        marker = $scope.createMarker(LatLng, "Way Point", "Way Point", "#green");
-        $scope.Marker.WayPoint.push(marker);
-        AllPoints.push(marker);
-      }
-      for (l = 0, len2 = AllPoints.length; l < len2; l++) {
-        op = AllPoints[l];
-        google.maps.event.addListener(op, 'dragend', function(m) {
-          $scope.ShowRoute();
-          $scope.Settings.Events = null;
-          $scope.SavePoints();
-        });
-      }
-    };
-    $scope.ClearEvents = function() {
-      $scope.Settings.Events = [];
-    };
-    $scope.showVehicle = function() {
-      return $filter('filter')($scope.Vehicles, {
-        _id: $scope.Vehicle.Selected
-      })[0].Name;
-    };
-    $scope.ShowRoute = function() {
-      var ipos, j, len, ref, request, waypts, wp;
-      if (!$scope.Marker.Start || !$scope.Marker.End) {
-        return;
-      }
-      $scope.directionsDisplay.setMap(null);
-      $scope.directionsDisplay.setMap($scope.map);
-      waypts = [];
-      ipos = 0;
-      ref = $scope.Marker.WayPoint;
-      for (j = 0, len = ref.length; j < len; j++) {
-        wp = ref[j];
-        waypts.push({
-          location: wp.position,
-          stopover: true
-        });
-      }
-      request = {
-        origin: $scope.Marker.Start.position,
-        destination: $scope.Marker.End.position,
-        waypoints: waypts,
-        optimizeWaypoints: true,
-        travelMode: google.maps.TravelMode.DRIVING
-      };
-      if ($scope.Settings.CircularTrip) {
-        waypts.push({
-          location: $scope.Marker.End.position,
-          stopover: true
-        });
-        request.destination = $scope.Marker.Start.position;
-      }
-      $scope.directionsService.route(request, function(response, status) {
-        var EventsNo, StepsNo, k, l, leg, len1, len2, ref1, ref2, step;
-        if (status !== google.maps.DirectionsStatus.OK) {
-          $scope.PrepareSimulator();
-          return;
-        }
-        $scope.Info.EventsNo = 0;
-        $scope.Info.LegsNo = 0;
-        $scope.Info.StepsNo = 0;
-        $scope.$apply(function() {
-          $scope.legs = response.routes[0].legs;
-          return $scope.Info.LegsNo += $scope.legs.length;
-        });
-        StepsNo = 0;
-        EventsNo = 0;
-        ref1 = $scope.legs;
-        for (k = 0, len1 = ref1.length; k < len1; k++) {
-          leg = ref1[k];
-          StepsNo += leg.steps.length;
-          ref2 = leg.steps;
-          for (l = 0, len2 = ref2.length; l < len2; l++) {
-            step = ref2[l];
-            EventsNo += step.path.length;
-          }
-        }
-        $scope.$apply(function() {
-          $scope.Info.StepsNo += StepsNo;
-          return $scope.Info.EventsNo += EventsNo;
-        });
-        return $scope.directionsDisplay.setDirections(response);
-      });
-    };
-    ChooseEventType = function(legsNo, stepNo, pathNo, legsMax, stepMax, pathMax) {
-      var eType;
-      eType = "TripStatus";
-      if (legsNo === 0 && stepNo === 0 && pathNo === 0) {
-        eType = "MovementStart";
-      } else if (pathNo === 0) {
-        eType = "HeadingChange";
-      } else if (legsNo === legsMax - 1 && stepNo === stepMax - 1 && pathNo === pathMax - 1) {
-        eType = "MovementStop";
-      } else if (Math.random() * 100 > $scope.Settings.NoOfEvents) {
-        eType = "";
-      } else if (Math.random() * 100 <= $scope.Settings.SpecialEventChance) {
-        eType = RandomEventTypes[Math.floor(Math.random() * RandomEventTypes.length)];
-      }
-      return eType;
-    };
-    $scope.CreateEvents = function() {
-      var CurrPoint, CurrentEventNo, FuelLevel, PrePoint, RandomSpeed, RandonRPM, TotalEventsNo, amax, apos, distanceSoFar, ev, imax, ipos, j, jmax, jpos, k, l, leg, len, len1, len2, len3, len4, n, newEvent, o, p0, p1, point, ref, ref1, ref2, ref3, ref4, step, thisStepDistance;
-      RandomEventTypes = [];
-      for (ev in $scope.AllRandomEventTypes) {
-        if ($scope.AllRandomEventTypes[ev]) {
-          RandomEventTypes.push(ev);
-        }
-      }
-      $scope.Settings.Events = [];
-      TotalEventsNo = 0;
-      CurrentEventNo = 0;
-      ref = $scope.legs;
-      for (j = 0, len = ref.length; j < len; j++) {
-        leg = ref[j];
-        ref1 = leg.steps;
-        for (k = 0, len1 = ref1.length; k < len1; k++) {
-          step = ref1[k];
-          TotalEventsNo += step.path.length;
-        }
-      }
-      newEvent = angular.copy(simulatorFactory.EventTemplate);
-      newEvent.EventType = "IgnitionOn";
-      newEvent.Location.Lng = $scope.legs[0].steps[0].path[0].lng();
-      newEvent.Location.Lat = $scope.legs[0].steps[0].path[0].lat();
-      newEvent.Odometer = 0;
-      $scope.Settings.Events.push(newEvent);
-      PrePoint = null;
-      CurrPoint = null;
-      RandonRPM = function() {
-        return Math.floor($scope.Settings.RPM.Min + ($scope.Settings.RPM.Max - $scope.Settings.RPM.Min) * Math.random());
-      };
-      RandomSpeed = function() {
-        return Math.floor($scope.Settings.Speed.Min + ($scope.Settings.Speed.Max - $scope.Settings.Speed.Min) * Math.random());
-      };
-      FuelLevel = function(i, m) {
-        var fl;
-        fl = $scope.Settings.Fuel.Max - ($scope.Settings.Fuel.Max - $scope.Settings.Fuel.Min) * i / m;
-        return Math.round(10 * fl) / 10;
-      };
-      distanceSoFar = 0;
-      amax = $scope.legs.length;
-      ref2 = $scope.legs;
-      for (apos = l = 0, len2 = ref2.length; l < len2; apos = ++l) {
-        leg = ref2[apos];
-        imax = leg.steps.length;
-        ref3 = leg.steps;
-        for (ipos = n = 0, len3 = ref3.length; n < len3; ipos = ++n) {
-          step = ref3[ipos];
-          thisStepDistance = step.distance.value;
-          jmax = step.path.length;
-          ref4 = step.path;
-          for (jpos = o = 0, len4 = ref4.length; o < len4; jpos = ++o) {
-            point = ref4[jpos];
-            PrePoint = CurrPoint;
-            CurrPoint = point;
-            newEvent = angular.copy(simulatorFactory.EventTemplate);
-            newEvent.EventType = ChooseEventType(apos, ipos, jpos, amax, imax, jmax);
-            if (newEvent.EventType.length === 0) {
-              jpos++;
-              CurrentEventNo++;
-              continue;
-            }
-            newEvent.Location.Lng = CurrPoint.lng();
-            newEvent.Location.Lat = CurrPoint.lat();
-            newEvent.RPM = RandonRPM();
-            newEvent.Speed = RandomSpeed();
-            newEvent.FuelLevel = FuelLevel(CurrentEventNo, TotalEventsNo);
-            newEvent.Odometer = (distanceSoFar + Math.round(thisStepDistance * (jpos + 1) / jmax)) / 1000;
-            if (PrePoint !== null) {
-              p0 = new google.maps.LatLng(PrePoint.lat(), PrePoint.lng());
-              p1 = new google.maps.LatLng(CurrPoint.lat(), CurrPoint.lng());
-              newEvent.Heading = google.maps.geometry.spherical.computeHeading(p0, p1);
-            }
-            $scope.Settings.Events.push(newEvent);
-            CurrentEventNo++;
-          }
-          distanceSoFar += thisStepDistance;
-        }
-      }
-      newEvent = angular.copy(simulatorFactory.EventTemplate);
-      newEvent.EventType = "IgnitionOff";
-      newEvent.Location.Lng = CurrPoint.lng();
-      newEvent.Location.Lat = CurrPoint.lat();
-      newEvent.Odometer = distanceSoFar / 1000;
-      $scope.Settings.Events.push(newEvent);
-    };
-    $scope.SimulationPlay = function() {
-      $scope.SimulationMode = "Play";
-      $scope.SimulationNextStep();
-    };
-    $scope.SimulationPause = function() {
-      $scope.SimulationMode = "Pause";
-    };
-    $scope.SimulationStop = function() {
-      $scope.SimulationMode = "Stop";
-      $scope.SimulationStep = 0;
-      $scope.Info.LastNetworkLatency = 0;
-      $scope.Info.TotalNetworkLatency = 0;
-      $scope.Info.AvgNetworkLatency = 0;
-      $scope.Info.LastWaitBeforeSendingEvent = 0;
-      $scope.Info.TotalWaitBeforeSendingEvent = 0;
-    };
-    processSVData = function(data, status) {
-      if (status === google.maps.StreetViewStatus.OK) {
-        $scope.panorama.setPano(data.location.pano);
-        $scope.panorama.setPov({
-          heading: $scope.heading,
-          pitch: 0
-        });
-        return $scope.panorama.setVisible(true);
-      }
-    };
-    $scope.SimulationNextStep = function() {
-      var cEvent, date1, sEvent;
-      if ($scope.SimulationStep >= $scope.Settings.Events.length) {
-        $scope.$apply(function() {
-          return $scope.SimulationStop();
-        });
-        return;
-      }
-      cEvent = $scope.Settings.Events[$scope.SimulationStep];
-      $scope.Info.LastEvent = cEvent;
-      if (cEvent.EventType !== "TripStatus") {
-        $scope.Info.LastImportantEvent = cEvent;
-      }
-      $scope.heading = cEvent.Heading;
-      $scope.sv.getPanoramaByLocation(new google.maps.LatLng(cEvent.Location.Lat, cEvent.Location.Lng), 50, processSVData);
-      date1 = new Date();
-      cEvent.Time = new Date();
-      sEvent = angular.copy(cEvent);
-      delete sEvent._viewStatus;
-      delete sEvent.ResponseTime;
-      sEvent.VehicleId = $scope.Vehicle.Selected;
-      mojioRemote.POST("events", sEvent, function() {
-        var date2, tspan;
-        date2 = new Date();
-        tspan = date2 - date1;
-        $scope.Info.LastNetworkLatency = tspan;
-        $scope.Info.TotalNetworkLatency += tspan;
-        $scope.Info.AvgNetworkLatency = Math.round($scope.Info.TotalNetworkLatency / ($scope.SimulationStep + 1));
-        cEvent.ResponseTime = new Date();
-        return $scope.SimulationPrepareNextStep(tspan);
-      }, function() {
-        var date2, tspan;
-        date2 = new Date();
-        tspan = date2 - date1;
-        $scope.Info.LastNetworkLatency = tspan;
-        $scope.Info.TotalNetworkLatency += tspan;
-        $scope.Info.AvgNetworkLatency = Math.round($scope.Info.TotalNetworkLatency / ($scope.SimulationStep + 1));
-        $scope.SimulationPrepareNextStep(Math.max($scope.Info.LastNetworkLatency, $scope.Info.AvgNetworkLatency));
-        return $scope.SimulationPrepareNextStep();
-      });
-    };
-    $scope.SimulationPrepareNextStep = function(tspan) {
-      var delay;
-      $scope.SimulationStep++;
-      if ($scope.SimulationStep >= $scope.Settings.Events.length) {
-        if (!$scope.$$phase) {
-          $scope.$apply(function() {
-            return $scope.SimulationStop();
-          });
-        } else {
-          $scope.SimulationStop();
-        }
-        return;
-      } else if ($scope.SimulationMode === "Play") {
-        delay = Math.round($scope.Settings.Duration * 60 * 1000 / $scope.Settings.Events.length);
-        delay = delay - tspan;
-        if (delay < 1) {
-          delay = 1;
-        }
-        $scope.Info.LastWaitBeforeSendingEvent = delay;
-        $scope.Info.TotalWaitBeforeSendingEvent += delay;
-        $scope.SimulationTimer = window.setTimeout($scope.SimulationNextStep, delay);
-      }
-    };
-    $scope.SimpleSimulationPlay = function() {
-      $scope.CreateEvents();
-      $scope.SimulationPlay();
-    };
-    $scope.PrepareSimulator = function() {
-      var CitiesLatLng, OneCity, latlng;
-      console.log("prepare");
-      if ($scope.Marker.Start) {
-        $scope.Marker.Start.setMap(null);
-        $scope.Marker.Start = null;
-      }
-      if ($scope.Marker.End) {
-        $scope.Marker.End.setMap(null);
-        $scope.Marker.End = null;
-      }
-      CitiesLatLng = [[49.9, 97.1], [48.45, 123.33], [47.2, 122.3]];
-      OneCity = CitiesLatLng[Math.round((CitiesLatLng.length - 1) * Math.random())];
-      latlng = new google.maps.LatLng(OneCity[0] + .2 - 0.4 * Math.random(), -OneCity[1] + .2 - 0.4 * Math.random());
-      $scope.Marker.Start = $scope.createMarker(latlng, "Start Point", "Start Point", "blue");
-      latlng = new google.maps.LatLng(OneCity[0] + .2 - 0.4 * Math.random(), -OneCity[1] + .2 - 0.4 * Math.random());
-      $scope.Marker.End = $scope.createMarker(latlng, "End Point", "End Point", "red");
-      $scope.ShowRoute();
-      $scope.Settings.Events = null;
-      $scope.SavePoints();
-    };
-    return $scope.PrepareSimulator();
-  }
-]);
-
 App.controller('simulatorController', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', 'simulatorFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, simulatorFactory) {
     var ChooseEventType, RandomEventTypes, myOptions, panoramaOptions, processSVData;
@@ -10854,6 +10675,472 @@ App.controller('simulatorController', [
   }
 ]);
 
+App.controller('simpleSimulatorController', [
+  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', 'simulatorFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, simulatorFactory) {
+    var ChooseEventType, RandomEventTypes, myOptions, panoramaOptions, processSVData;
+    $scope.Settings = {
+      Title: 'New Trip Title',
+      Duration: 5,
+      NoOfEvents: 30,
+      RPM: {
+        Min: 300,
+        Max: 1200
+      },
+      Speed: {
+        Min: 30,
+        Max: 90
+      },
+      Fuel: {
+        Min: 70,
+        Max: 80
+      },
+      SpecialEventChance: 10,
+      Points: {
+        Start: null,
+        End: null,
+        WayPoint: []
+      },
+      CircularTrip: false,
+      Events: null
+    };
+    $scope.Marker = {
+      Start: null,
+      End: null,
+      WayPoint: []
+    };
+    $scope.Vehicle = {
+      Selected: null
+    };
+    $scope.Vehicles = null;
+    mojioRemote.GET("Users/" + mojioGlobal.data.user_data.id + "/Vehicles", 20, null, null, null, function(result) {
+      $scope.Vehicles = result.Data;
+      simulatorFactory.FixVehicleName($scope.Vehicles);
+      return $scope.Vehicle.Selected = $scope.Vehicles[0]._id;
+    });
+    $scope.SimulationMode = "Stop";
+    $scope.SimulationStep = 0;
+    $scope.SimulationTimer = null;
+    $scope.Info = {
+      EventsNo: 0,
+      LegsNo: 0,
+      StepsNo: 0,
+      LastImportantEvent: null,
+      LastEvent: null,
+      LastNetworkLatency: 0,
+      TotalNetworkLatency: 0,
+      AvgNetworkLatency: 0,
+      LastWaitBeforeSendingEvent: 0,
+      TotalWaitBeforeSendingEvent: 0
+    };
+    $scope.legs = null;
+    RandomEventTypes = [];
+    $scope.AllRandomEventTypes = {
+      "ConnectionLost": true,
+      "LowBattery": true,
+      "Accident": true,
+      "Acceleration": true,
+      "Deceleration": true
+    };
+    $scope.createMarker = function(latlng, name, html, color) {
+      var contentString, marker;
+      contentString = html;
+      marker = new google.maps.Marker({
+        position: latlng,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          strokeColor: color,
+          scale: 3
+        },
+        draggable: true,
+        map: $scope.map
+      });
+      return marker;
+    };
+    $scope.PointType = "s";
+    myOptions = {
+      zoom: 8,
+      center: new google.maps.LatLng(43.907787, -79.359741),
+      mapTypeControl: true,
+      mapTypeControlOptions: {
+        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+      },
+      navigationControl: true,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    $scope.map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+    $scope.directionsDisplay = new google.maps.DirectionsRenderer();
+    $scope.directionsService = new google.maps.DirectionsService();
+    panoramaOptions = {
+      clickToGo: false,
+      disableDefaultUI: true
+    };
+    $scope.panorama = new google.maps.StreetViewPanorama(document.getElementById("pano"), panoramaOptions);
+    $scope.sv = new google.maps.StreetViewService();
+    $scope.map.setStreetView($scope.panorama);
+    $scope.SavePoints = function() {
+      var WayPoint, j, len, ref, wp;
+      if ($scope.Marker.Start) {
+        $scope.Settings.Points.Start = [$scope.Marker.Start.position.lat(), $scope.Marker.Start.position.lng()];
+      } else {
+        $scope.Settings.Points.Start = null;
+      }
+      if ($scope.Marker.End) {
+        $scope.Settings.Points.End = [$scope.Marker.End.position.lat(), $scope.Marker.End.position.lng()];
+      } else {
+        $scope.Settings.Points.End = null;
+      }
+      WayPoint = [];
+      ref = $scope.Marker.WayPoint;
+      for (j = 0, len = ref.length; j < len; j++) {
+        wp = ref[j];
+        WayPoint.push([wp.position.lat(), wp.position.lng()]);
+      }
+      $scope.Settings.Points.WayPoint = WayPoint;
+    };
+    $scope.LoadPoints = function() {
+      var AllPoints, LatLng, WayPoint, j, k, l, len, len1, len2, marker, op, ref, ref1, wp;
+      AllPoints = [];
+      if ($scope.Marker.Start) {
+        $scope.Marker.Start.setMap(null);
+        $scope.Marker.Start = null;
+      }
+      if ($scope.Settings.Points.Start) {
+        LatLng = new google.maps.LatLng($scope.Settings.Points.Start[0], $scope.Settings.Points.Start[1]);
+        $scope.Marker.Start = $scope.createMarker(LatLng, "Start Point", "Start Point", "blue");
+        AllPoints.push($scope.Marker.Start);
+      } else {
+        $scope.Marker.Start.setMap(null);
+        $scope.Marker.Start = null;
+      }
+      if ($scope.Marker.End) {
+        $scope.Marker.End.setMap(null);
+        $scope.Marker.End = null;
+      }
+      if ($scope.Settings.Points.End) {
+        LatLng = new google.maps.LatLng($scope.Settings.Points.End[0], $scope.Settings.Points.End[1]);
+        $scope.Marker.End = $scope.createMarker(LatLng, "End Point", "End Point", "red");
+        AllPoints.push($scope.Marker.End);
+      } else {
+        $scope.Marker.End.setMap(null);
+        $scope.Marker.End = null;
+      }
+      WayPoint = [];
+      ref = $scope.Marker.WayPoint;
+      for (j = 0, len = ref.length; j < len; j++) {
+        wp = ref[j];
+        wp.setMap(null);
+        wp = null;
+      }
+      $scope.Marker.WayPoint = [];
+      ref1 = $scope.Settings.Points.WayPoint;
+      for (k = 0, len1 = ref1.length; k < len1; k++) {
+        wp = ref1[k];
+        LatLng = new google.maps.LatLng(wp[0], wp[1]);
+        marker = $scope.createMarker(LatLng, "Way Point", "Way Point", "#green");
+        $scope.Marker.WayPoint.push(marker);
+        AllPoints.push(marker);
+      }
+      for (l = 0, len2 = AllPoints.length; l < len2; l++) {
+        op = AllPoints[l];
+        google.maps.event.addListener(op, 'dragend', function(m) {
+          $scope.ShowRoute();
+          $scope.Settings.Events = null;
+          $scope.SavePoints();
+        });
+      }
+    };
+    $scope.ClearEvents = function() {
+      $scope.Settings.Events = [];
+    };
+    $scope.showVehicle = function() {
+      return $filter('filter')($scope.Vehicles, {
+        _id: $scope.Vehicle.Selected
+      })[0].Name;
+    };
+    $scope.ShowRoute = function() {
+      var ipos, j, len, ref, request, waypts, wp;
+      if (!$scope.Marker.Start || !$scope.Marker.End) {
+        return;
+      }
+      $scope.directionsDisplay.setMap(null);
+      $scope.directionsDisplay.setMap($scope.map);
+      waypts = [];
+      ipos = 0;
+      ref = $scope.Marker.WayPoint;
+      for (j = 0, len = ref.length; j < len; j++) {
+        wp = ref[j];
+        waypts.push({
+          location: wp.position,
+          stopover: true
+        });
+      }
+      request = {
+        origin: $scope.Marker.Start.position,
+        destination: $scope.Marker.End.position,
+        waypoints: waypts,
+        optimizeWaypoints: true,
+        travelMode: google.maps.TravelMode.DRIVING
+      };
+      if ($scope.Settings.CircularTrip) {
+        waypts.push({
+          location: $scope.Marker.End.position,
+          stopover: true
+        });
+        request.destination = $scope.Marker.Start.position;
+      }
+      $scope.directionsService.route(request, function(response, status) {
+        var EventsNo, StepsNo, k, l, leg, len1, len2, ref1, ref2, step;
+        if (status !== google.maps.DirectionsStatus.OK) {
+          $scope.PrepareSimulator();
+          return;
+        }
+        $scope.Info.EventsNo = 0;
+        $scope.Info.LegsNo = 0;
+        $scope.Info.StepsNo = 0;
+        $scope.$apply(function() {
+          $scope.legs = response.routes[0].legs;
+          return $scope.Info.LegsNo += $scope.legs.length;
+        });
+        StepsNo = 0;
+        EventsNo = 0;
+        ref1 = $scope.legs;
+        for (k = 0, len1 = ref1.length; k < len1; k++) {
+          leg = ref1[k];
+          StepsNo += leg.steps.length;
+          ref2 = leg.steps;
+          for (l = 0, len2 = ref2.length; l < len2; l++) {
+            step = ref2[l];
+            EventsNo += step.path.length;
+          }
+        }
+        $scope.$apply(function() {
+          $scope.Info.StepsNo += StepsNo;
+          return $scope.Info.EventsNo += EventsNo;
+        });
+        return $scope.directionsDisplay.setDirections(response);
+      });
+    };
+    ChooseEventType = function(legsNo, stepNo, pathNo, legsMax, stepMax, pathMax) {
+      var eType;
+      eType = "TripStatus";
+      if (legsNo === 0 && stepNo === 0 && pathNo === 0) {
+        eType = "MovementStart";
+      } else if (pathNo === 0) {
+        eType = "HeadingChange";
+      } else if (legsNo === legsMax - 1 && stepNo === stepMax - 1 && pathNo === pathMax - 1) {
+        eType = "MovementStop";
+      } else if (Math.random() * 100 > $scope.Settings.NoOfEvents) {
+        eType = "";
+      } else if (Math.random() * 100 <= $scope.Settings.SpecialEventChance) {
+        eType = RandomEventTypes[Math.floor(Math.random() * RandomEventTypes.length)];
+      }
+      return eType;
+    };
+    $scope.CreateEvents = function() {
+      var CurrPoint, CurrentEventNo, FuelLevel, PrePoint, RandomSpeed, RandonRPM, TotalEventsNo, amax, apos, distanceSoFar, ev, imax, ipos, j, jmax, jpos, k, l, leg, len, len1, len2, len3, len4, n, newEvent, o, p0, p1, point, ref, ref1, ref2, ref3, ref4, step, thisStepDistance;
+      RandomEventTypes = [];
+      for (ev in $scope.AllRandomEventTypes) {
+        if ($scope.AllRandomEventTypes[ev]) {
+          RandomEventTypes.push(ev);
+        }
+      }
+      $scope.Settings.Events = [];
+      TotalEventsNo = 0;
+      CurrentEventNo = 0;
+      ref = $scope.legs;
+      for (j = 0, len = ref.length; j < len; j++) {
+        leg = ref[j];
+        ref1 = leg.steps;
+        for (k = 0, len1 = ref1.length; k < len1; k++) {
+          step = ref1[k];
+          TotalEventsNo += step.path.length;
+        }
+      }
+      newEvent = angular.copy(simulatorFactory.EventTemplate);
+      newEvent.EventType = "IgnitionOn";
+      newEvent.Location.Lng = $scope.legs[0].steps[0].path[0].lng();
+      newEvent.Location.Lat = $scope.legs[0].steps[0].path[0].lat();
+      newEvent.Odometer = 0;
+      $scope.Settings.Events.push(newEvent);
+      PrePoint = null;
+      CurrPoint = null;
+      RandonRPM = function() {
+        return Math.floor($scope.Settings.RPM.Min + ($scope.Settings.RPM.Max - $scope.Settings.RPM.Min) * Math.random());
+      };
+      RandomSpeed = function() {
+        return Math.floor($scope.Settings.Speed.Min + ($scope.Settings.Speed.Max - $scope.Settings.Speed.Min) * Math.random());
+      };
+      FuelLevel = function(i, m) {
+        var fl;
+        fl = $scope.Settings.Fuel.Max - ($scope.Settings.Fuel.Max - $scope.Settings.Fuel.Min) * i / m;
+        return Math.round(10 * fl) / 10;
+      };
+      distanceSoFar = 0;
+      amax = $scope.legs.length;
+      ref2 = $scope.legs;
+      for (apos = l = 0, len2 = ref2.length; l < len2; apos = ++l) {
+        leg = ref2[apos];
+        imax = leg.steps.length;
+        ref3 = leg.steps;
+        for (ipos = n = 0, len3 = ref3.length; n < len3; ipos = ++n) {
+          step = ref3[ipos];
+          thisStepDistance = step.distance.value;
+          jmax = step.path.length;
+          ref4 = step.path;
+          for (jpos = o = 0, len4 = ref4.length; o < len4; jpos = ++o) {
+            point = ref4[jpos];
+            PrePoint = CurrPoint;
+            CurrPoint = point;
+            newEvent = angular.copy(simulatorFactory.EventTemplate);
+            newEvent.EventType = ChooseEventType(apos, ipos, jpos, amax, imax, jmax);
+            if (newEvent.EventType.length === 0) {
+              jpos++;
+              CurrentEventNo++;
+              continue;
+            }
+            newEvent.Location.Lng = CurrPoint.lng();
+            newEvent.Location.Lat = CurrPoint.lat();
+            newEvent.RPM = RandonRPM();
+            newEvent.Speed = RandomSpeed();
+            newEvent.FuelLevel = FuelLevel(CurrentEventNo, TotalEventsNo);
+            newEvent.Odometer = (distanceSoFar + Math.round(thisStepDistance * (jpos + 1) / jmax)) / 1000;
+            if (PrePoint !== null) {
+              p0 = new google.maps.LatLng(PrePoint.lat(), PrePoint.lng());
+              p1 = new google.maps.LatLng(CurrPoint.lat(), CurrPoint.lng());
+              newEvent.Heading = google.maps.geometry.spherical.computeHeading(p0, p1);
+            }
+            $scope.Settings.Events.push(newEvent);
+            CurrentEventNo++;
+          }
+          distanceSoFar += thisStepDistance;
+        }
+      }
+      newEvent = angular.copy(simulatorFactory.EventTemplate);
+      newEvent.EventType = "IgnitionOff";
+      newEvent.Location.Lng = CurrPoint.lng();
+      newEvent.Location.Lat = CurrPoint.lat();
+      newEvent.Odometer = distanceSoFar / 1000;
+      $scope.Settings.Events.push(newEvent);
+    };
+    $scope.SimulationPlay = function() {
+      $scope.SimulationMode = "Play";
+      $scope.SimulationNextStep();
+    };
+    $scope.SimulationPause = function() {
+      $scope.SimulationMode = "Pause";
+    };
+    $scope.SimulationStop = function() {
+      $scope.SimulationMode = "Stop";
+      $scope.SimulationStep = 0;
+      $scope.Info.LastNetworkLatency = 0;
+      $scope.Info.TotalNetworkLatency = 0;
+      $scope.Info.AvgNetworkLatency = 0;
+      $scope.Info.LastWaitBeforeSendingEvent = 0;
+      $scope.Info.TotalWaitBeforeSendingEvent = 0;
+    };
+    processSVData = function(data, status) {
+      if (status === google.maps.StreetViewStatus.OK) {
+        $scope.panorama.setPano(data.location.pano);
+        $scope.panorama.setPov({
+          heading: $scope.heading,
+          pitch: 0
+        });
+        return $scope.panorama.setVisible(true);
+      }
+    };
+    $scope.SimulationNextStep = function() {
+      var cEvent, date1, sEvent;
+      if ($scope.SimulationStep >= $scope.Settings.Events.length) {
+        $scope.$apply(function() {
+          return $scope.SimulationStop();
+        });
+        return;
+      }
+      cEvent = $scope.Settings.Events[$scope.SimulationStep];
+      $scope.Info.LastEvent = cEvent;
+      if (cEvent.EventType !== "TripStatus") {
+        $scope.Info.LastImportantEvent = cEvent;
+      }
+      $scope.heading = cEvent.Heading;
+      $scope.sv.getPanoramaByLocation(new google.maps.LatLng(cEvent.Location.Lat, cEvent.Location.Lng), 50, processSVData);
+      date1 = new Date();
+      cEvent.Time = new Date();
+      sEvent = angular.copy(cEvent);
+      delete sEvent._viewStatus;
+      delete sEvent.ResponseTime;
+      sEvent.VehicleId = $scope.Vehicle.Selected;
+      mojioRemote.POST("events", sEvent, function() {
+        var date2, tspan;
+        date2 = new Date();
+        tspan = date2 - date1;
+        $scope.Info.LastNetworkLatency = tspan;
+        $scope.Info.TotalNetworkLatency += tspan;
+        $scope.Info.AvgNetworkLatency = Math.round($scope.Info.TotalNetworkLatency / ($scope.SimulationStep + 1));
+        cEvent.ResponseTime = new Date();
+        return $scope.SimulationPrepareNextStep(tspan);
+      }, function() {
+        var date2, tspan;
+        date2 = new Date();
+        tspan = date2 - date1;
+        $scope.Info.LastNetworkLatency = tspan;
+        $scope.Info.TotalNetworkLatency += tspan;
+        $scope.Info.AvgNetworkLatency = Math.round($scope.Info.TotalNetworkLatency / ($scope.SimulationStep + 1));
+        $scope.SimulationPrepareNextStep(Math.max($scope.Info.LastNetworkLatency, $scope.Info.AvgNetworkLatency));
+        return $scope.SimulationPrepareNextStep();
+      });
+    };
+    $scope.SimulationPrepareNextStep = function(tspan) {
+      var delay;
+      $scope.SimulationStep++;
+      if ($scope.SimulationStep >= $scope.Settings.Events.length) {
+        if (!$scope.$$phase) {
+          $scope.$apply(function() {
+            return $scope.SimulationStop();
+          });
+        } else {
+          $scope.SimulationStop();
+        }
+        return;
+      } else if ($scope.SimulationMode === "Play") {
+        delay = Math.round($scope.Settings.Duration * 60 * 1000 / $scope.Settings.Events.length);
+        delay = delay - tspan;
+        if (delay < 1) {
+          delay = 1;
+        }
+        $scope.Info.LastWaitBeforeSendingEvent = delay;
+        $scope.Info.TotalWaitBeforeSendingEvent += delay;
+        $scope.SimulationTimer = window.setTimeout($scope.SimulationNextStep, delay);
+      }
+    };
+    $scope.SimpleSimulationPlay = function() {
+      $scope.CreateEvents();
+      $scope.SimulationPlay();
+    };
+    $scope.PrepareSimulator = function() {
+      var CitiesLatLng, OneCity, latlng;
+      console.log("prepare");
+      if ($scope.Marker.Start) {
+        $scope.Marker.Start.setMap(null);
+        $scope.Marker.Start = null;
+      }
+      if ($scope.Marker.End) {
+        $scope.Marker.End.setMap(null);
+        $scope.Marker.End = null;
+      }
+      CitiesLatLng = [[49.9, 97.1], [48.45, 123.33], [47.2, 122.3]];
+      OneCity = CitiesLatLng[Math.round((CitiesLatLng.length - 1) * Math.random())];
+      latlng = new google.maps.LatLng(OneCity[0] + .2 - 0.4 * Math.random(), -OneCity[1] + .2 - 0.4 * Math.random());
+      $scope.Marker.Start = $scope.createMarker(latlng, "Start Point", "Start Point", "blue");
+      latlng = new google.maps.LatLng(OneCity[0] + .2 - 0.4 * Math.random(), -OneCity[1] + .2 - 0.4 * Math.random());
+      $scope.Marker.End = $scope.createMarker(latlng, "End Point", "End Point", "red");
+      $scope.ShowRoute();
+      $scope.Settings.Events = null;
+      $scope.SavePoints();
+    };
+    return $scope.PrepareSimulator();
+  }
+]);
+
 App.controller('tcuVisualizer', [
   '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
     var myOptions;
@@ -10949,293 +11236,6 @@ App.controller('tcuVisualizer', [
     };
     $scope.ShowFieldOnTitle = function(key) {
       $scope.AdvTitle = key;
-    };
-  }
-]);
-
-App.controller('manageDeviceController', [
-  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', '$http', 'myMojioFactory', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter, $http, myMojioFactory) {
-    var showImage;
-    $scope.showClaim = false;
-    $scope.ShowAddNewDevice = function() {
-      $scope.showClaim = true;
-    };
-    $scope.FileContent = null;
-    $scope.File = null;
-    $scope.$watch('FileContent', function(newValue, oldValue) {
-      var base64;
-      if (newValue === null) {
-        return;
-      }
-      base64 = '"' + $scope.FileContent.split(',')[1] + '"';
-      mojioRemote.POST("Users/" + mojioGlobal.data.user_data.id + "/Image", base64, function() {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.uploadImage.success.title'),
-          body: $filter('translate')('mymojio_account.uploadImage.success.body')
-        });
-        showImage();
-        return mojioGlobal.getUserPic();
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.uploadImage.error.title'),
-          body: $filter('translate')('mymojio_account.uploadImage.error.body')
-        });
-      });
-    });
-    $scope.Data = {
-      IMEI: ""
-    };
-    showImage = function() {
-      $scope.UserPicExist = false;
-      return mojioRemote.GETBlob("Users/" + mojioGlobal.data.user_data.id + "/Image?size=200", null, null, null, null, function(blob) {
-        var img;
-        img = document.getElementById('UserPic');
-        img.onload = function(e) {
-          return window.URL.revokeObjectURL(img.src);
-        };
-        img.src = window.URL.createObjectURL(blob);
-        return $scope.UserPicExist = true;
-      });
-    };
-    showImage();
-    $scope.me = {};
-    $scope.pwd = {
-      Current: '',
-      NewPassword: ''
-    };
-    mojioRemote.GET("Users/Me", null, null, null, null, function(result) {
-      return $scope.me = result;
-    });
-    $scope.SaveUserInfo = function(isValid) {
-      var data;
-      if (!isValid) {
-        toaster.error({
-          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
-          body: $filter('translate')('mymojio_account.SaveUserInformation.error.invalidBody')
-        });
-      }
-      data = {
-        Type: "User",
-        _id: $scope.me._id,
-        UserName: $scope.me.UserName,
-        FirstName: $scope.me.FirstName,
-        LastName: $scope.me.LastName,
-        Email: $scope.me.Email
-      };
-      mojioRemote.PUT("Users/" + $scope.me._id, data, function(result) {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.SaveUserInformation.success.title'),
-          body: $filter('translate')('mymojio_account.SaveUserInformation.success.body')
-        });
-        return $rootScope.user.name = $scope.me.UserName;
-      }, function(result) {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.SaveUserInformation.error.title'),
-          body: $filter('translate')('mymojio_account.SaveUserInformation.error.body') + " - " + result
-        });
-      });
-    };
-    $scope.changePassword = function(isValid) {
-      var data;
-      if (!isValid) {
-        return;
-      }
-      data = {
-        OldPassword: $scope.pwd.Current,
-        NewPassword: $scope.pwd.NewPassword
-      };
-      mojioRemote.PUT("Users/" + $scope.me._id + "/Password", data, function(result) {
-        return toaster.success({
-          title: $filter('translate')('mymojio_account.ChangePassword.success.title'),
-          body: $filter('translate')('mymojio_account.ChangePassword.success.body')
-        });
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.ChangePassword.error.title'),
-          body: $filter('translate')('mymojio_account.ChangePassword.error.body')
-        });
-      });
-    };
-    $scope.ClaimOnProcess = false;
-    $scope.claim = function(refreshCallback) {
-      if ($scope.ClaimOnProcess) {
-        return;
-      }
-      $scope.ClaimOnProcess = true;
-      mojioRemote.PUT("Mojios/" + $scope.Data.IMEI + "/User", {}, function(result) {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.ClaimDevice.success.title'),
-          body: $filter('translate')('mymojio_account.ClaimDevice.success.body')
-        });
-        refreshCallback(0);
-        $scope.showClaim = false;
-        return $scope.ClaimOnProcess = false;
-      }, function() {
-        $scope.ClaimOnProcess = false;
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.ClaimDevice.error.title'),
-          body: $filter('translate')('mymojio_account.ClaimDevice.error.body')
-        });
-      });
-    };
-    $scope.updateDevice = function(row) {
-      mojioRemote.PUT("Mojios/" + row._id, row, function(result) {
-        return toaster.success({
-          title: $filter('translate')('mymojio_account.RenameDevice.success.title'),
-          body: $filter('translate')('mymojio_account.RenameDevice.success.body')
-        });
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.RenameDevice.error.title'),
-          body: $filter('translate')('mymojio_account.RenameDevice.error.body')
-        });
-      });
-    };
-    $scope.updateVehicle = function(row) {
-      mojioRemote.PUT("Vehicles/" + row._id, row, function(result) {
-        toaster.success({
-          title: $filter('translate')('mymojio_account.UpdateVehicle.success.title'),
-          body: $filter('translate')('mymojio_account.UpdateVehicle.success.body')
-        });
-        return myMojioFactory.forcePrepareData(function() {
-          var i, len, ref, results, v;
-          console.table(myMojioFactory.Content.Vehicles);
-          ref = myMojioFactory.Content.Vehicles;
-          results = [];
-          for (i = 0, len = ref.length; i < len; i++) {
-            v = ref[i];
-            results.push(console.log(v.Name));
-          }
-          return results;
-        });
-      }, function() {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.UpdateVehicle.error.title'),
-          body: $filter('translate')('mymojio_account.UpdateVehicle.error.body')
-        });
-      });
-    };
-    $scope.CarStatus = function(v) {
-      var d, t;
-      if (typeof v === "undefined" || v === null || v.LastContactTime === null) {
-        return $filter('translate')('common.CarStatus.Unknown');
-      }
-      t = new Date(v.LastContactTime);
-      d = ((new Date()) - t) / (1000 * 60 * 60 * 24);
-      if (d > 1) {
-        return $filter('translate')('common.CarStatus.Unknown');
-      }
-      if (v.IgnitionOn) {
-        return $filter('translate')('common.CarStatus.Driving');
-      }
-      return $filter('translate')('common.CarStatus.Parked');
-    };
-    $scope.SelectedVehicle = 0;
-    $scope.selectVehicle = function(row) {
-      if (typeof row.selected === 'undefined' || row.selected === false) {
-        if ($scope.SelectedVehicle === 2) {
-          return;
-        }
-        row.selected = true;
-        $scope.SelectedVehicle++;
-      } else {
-        row.selected = false;
-        $scope.SelectedVehicle--;
-      }
-    };
-    $scope.MergeVehicles = function(data, refreshCallback) {
-      var httpOptions, i, id1, id2, len, v;
-      id1 = null;
-      id2 = null;
-      for (i = 0, len = data.length; i < len; i++) {
-        v = data[i];
-        if (v.selected) {
-          if (id1 === null) {
-            id1 = v._id;
-          } else {
-            id2 = v._id;
-            break;
-          }
-        }
-      }
-      httpOptions = {
-        method: 'DELETE',
-        url: mojioGlobal.apiUrl().replace('v1/', 'v2/') + 'vehicles/' + id1 + '?actual=' + id2,
-        headers: mojioGlobal.CreateHeaders().headers
-      };
-      $http(httpOptions).success(function(response) {
-        refreshCallback(0);
-        $scope.SelectedVehicle = 0;
-        return toaster.success({
-          title: $filter('translate')('mymojio_account.MergeVehicle.success.title'),
-          body: $filter('translate')('mymojio_account.MergeVehicle.success.body')
-        });
-      }).error(function(response) {
-        return toaster.error({
-          title: $filter('translate')('mymojio_account.MergeVehicle.error.title'),
-          body: $filter('translate')('mymojio_account.MergeVehicle.error.body')
-        });
-      });
-    };
-    $scope.PrintInConsole = function(data) {
-      return console.log(data);
-    };
-  }
-]);
-
-App.controller('manageAppsController', [
-  '$scope', '$rootScope', '$stateParams', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$filter', function($scope, $rootScope, $stateParams, mojioRemote, mojioLocal, mojioGlobal, toaster, $filter) {
-    $scope.fieldDesc = [
-      {
-        FieldName: 'Name',
-        FieldTitle: 'Application Name'
-      }, {
-        FieldName: 'Description',
-        FieldTitle: 'Application Description'
-      }, {
-        FieldName: 'RedirectUris',
-        FieldTitle: 'RedirectUris'
-      }
-    ];
-    $scope.NewApp = {
-      Type: "App",
-      Name: "",
-      Description: "",
-      ApplicationType: "Web",
-      CreationDate: "",
-      Downloads: 0,
-      RedirectUris: [""],
-      _deleted: false,
-      _id: ""
-    };
-    $scope.Data = {};
-    $scope.deleteMojio = function(row) {
-      alert(1);
-      $scope.$$childHead.newSearch(0);
-    };
-    $scope.editMojio = function(row) {
-      alert($scope.Data.NewData);
-    };
-    $scope.CreateApp = function() {
-      var data;
-      data = {};
-      return mojioRemote.POST("Apps/", $scope.NewApp, function(result) {
-        toaster.success({
-          title: "Create Application",
-          body: "Create Application Successfully"
-        });
-        return $scope.$$childHead.newSearch(0);
-      }, function() {
-        return toaster.error({
-          title: "Create Application",
-          body: "Create Application was unsuccessful"
-        });
-      });
-    };
-    return $scope.showAppIDE = function(row) {
-      $state.go("dev.appide", {
-        id: row._id
-      });
     };
   }
 ]);
@@ -11513,6 +11513,28 @@ App.filter('timeago', function() {
     return ago(new Date(idate));
   };
 });
+
+App.directive('gearAdminMojio', [
+  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
+    return {
+      restrict: 'EA',
+      templateUrl: 'gear_admin_mojio.html',
+      controller: ["$rootScope", "$scope", function($rootScope, $scope) {
+        var getMojio;
+        getMojio = function() {
+          return mojioRemote.GET("Mojios/" + $scope.AllData.SelectedVehicle.MojioId, null, null, null, null, function(result) {
+            return $scope.Mojio = result;
+          });
+        };
+        $scope.Mojio = {};
+        $scope.$watch('AllData.SelectedVehicle', function() {
+          return getMojio();
+        });
+      }],
+      link: function($rootScope, scope, element, attrs) {}
+    };
+  }
+]);
 
 App.directive('gearAdminVehicle', [
   '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
@@ -12397,6 +12419,75 @@ App.directive('widgetCmsGithubMenu', [
   }
 ]);
 
+App.directive('widgetDetailDevice', [
+  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
+    return {
+      restrict: 'EA',
+      templateUrl: 'widget_detail_device.html',
+      controller: ["$rootScope", "$scope", "mojioRemote", function($rootScope, $scope, mojioRemote) {
+        $scope.reset = function() {
+          return $scope.rel = {
+            trips: [],
+            moreTrips: false,
+            loadTrips: false,
+            events: [],
+            moreEvents: false,
+            loadEvents: false
+          };
+        };
+        $scope.reset();
+        $rootScope.$on('MojioObjectSelected', function(event, data) {
+          if (data.Type === "Mojio") {
+            return $scope.reset();
+          }
+        });
+        $scope.broadcast = function(data) {
+          $rootScope.$broadcast('MojioObjectSelected', data);
+        };
+        $scope.showOwner = function() {
+          mojioRemote.GET("Mojios/" + $scope.data._id + "/Owner", null, null, null, null, function(result) {
+            return $rootScope.$broadcast('MojioObjectSelected', result);
+          });
+        };
+        $scope.showVehicle = function() {
+          mojioRemote.GET("Vehicles/" + $scope.data.VehicleId, null, null, null, null, function(result) {
+            return $rootScope.$broadcast('MojioObjectSelected', result);
+          });
+        };
+        $scope.showRecentTrips = function() {
+          $scope.rel.loadTrips = true;
+          $scope.rel.moreTrips = false;
+          mojioRemote.GET("Mojios/" + $scope.data._id + "/Trips", 10, $scope.rel.trips.length, null, "sortBy=StartTime&desc=true", function(result) {
+            $scope.rel.trips = $scope.rel.trips.concat(result.Data);
+            $scope.rel.loadTrips = false;
+            if (result.TotalRows > $scope.rel.trips.length) {
+              return $scope.rel.moreTrips = true;
+            } else {
+              return $scope.rel.moreTrips = false;
+            }
+          });
+        };
+        $scope.showRecentEvents = function() {
+          $scope.rel.loadEvents = true;
+          $scope.rel.moreEvents = false;
+          mojioRemote.GET("Mojios/" + $scope.data._id + "/Events", 10, $scope.rel.events.length, null, "sortBy=Time&desc=true", function(result) {
+            $scope.rel.events = $scope.rel.events.concat(result.Data);
+            $scope.rel.loadEvents = false;
+            if (result.TotalRows > $scope.rel.events.length) {
+              return $scope.rel.moreEvents = true;
+            } else {
+              return $scope.rel.moreEvents = false;
+            }
+          });
+        };
+      }],
+      link: function($rootScope, $scope, element, attrs) {
+        $scope.data = attrs.data;
+      }
+    };
+  }
+]);
+
 App.directive('widgetDetailApp', [
   '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
     return {
@@ -12464,75 +12555,6 @@ App.directive('widgetDetailApp', [
           $scope.rel.loadEvents = true;
           $scope.rel.moreEvents = false;
           mojioRemote.GET("Users/" + $scope.data._id + "/Events", 10, $scope.rel.events.length, null, "sortBy=Time&desc=true", function(result) {
-            $scope.rel.events = $scope.rel.events.concat(result.Data);
-            $scope.rel.loadEvents = false;
-            if (result.TotalRows > $scope.rel.events.length) {
-              return $scope.rel.moreEvents = true;
-            } else {
-              return $scope.rel.moreEvents = false;
-            }
-          });
-        };
-      }],
-      link: function($rootScope, $scope, element, attrs) {
-        $scope.data = attrs.data;
-      }
-    };
-  }
-]);
-
-App.directive('widgetDetailDevice', [
-  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
-    return {
-      restrict: 'EA',
-      templateUrl: 'widget_detail_device.html',
-      controller: ["$rootScope", "$scope", "mojioRemote", function($rootScope, $scope, mojioRemote) {
-        $scope.reset = function() {
-          return $scope.rel = {
-            trips: [],
-            moreTrips: false,
-            loadTrips: false,
-            events: [],
-            moreEvents: false,
-            loadEvents: false
-          };
-        };
-        $scope.reset();
-        $rootScope.$on('MojioObjectSelected', function(event, data) {
-          if (data.Type === "Mojio") {
-            return $scope.reset();
-          }
-        });
-        $scope.broadcast = function(data) {
-          $rootScope.$broadcast('MojioObjectSelected', data);
-        };
-        $scope.showOwner = function() {
-          mojioRemote.GET("Mojios/" + $scope.data._id + "/Owner", null, null, null, null, function(result) {
-            return $rootScope.$broadcast('MojioObjectSelected', result);
-          });
-        };
-        $scope.showVehicle = function() {
-          mojioRemote.GET("Vehicles/" + $scope.data.VehicleId, null, null, null, null, function(result) {
-            return $rootScope.$broadcast('MojioObjectSelected', result);
-          });
-        };
-        $scope.showRecentTrips = function() {
-          $scope.rel.loadTrips = true;
-          $scope.rel.moreTrips = false;
-          mojioRemote.GET("Mojios/" + $scope.data._id + "/Trips", 10, $scope.rel.trips.length, null, "sortBy=StartTime&desc=true", function(result) {
-            $scope.rel.trips = $scope.rel.trips.concat(result.Data);
-            $scope.rel.loadTrips = false;
-            if (result.TotalRows > $scope.rel.trips.length) {
-              return $scope.rel.moreTrips = true;
-            } else {
-              return $scope.rel.moreTrips = false;
-            }
-          });
-        };
-        $scope.showRecentEvents = function() {
-          $scope.rel.loadEvents = true;
-          $scope.rel.moreEvents = false;
-          mojioRemote.GET("Mojios/" + $scope.data._id + "/Events", 10, $scope.rel.events.length, null, "sortBy=Time&desc=true", function(result) {
             $scope.rel.events = $scope.rel.events.concat(result.Data);
             $scope.rel.loadEvents = false;
             if (result.TotalRows > $scope.rel.events.length) {
@@ -13321,28 +13343,6 @@ App.directive('serviceOfferEdit', [
   }
 ]);
 
-App.directive('gearAdminMojio', [
-  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', '$http', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster, $http) {
-    return {
-      restrict: 'EA',
-      templateUrl: 'gear_admin_mojio.html',
-      controller: ["$rootScope", "$scope", function($rootScope, $scope) {
-        var getMojio;
-        getMojio = function() {
-          return mojioRemote.GET("Mojios/" + $scope.AllData.SelectedVehicle.MojioId, null, null, null, null, function(result) {
-            return $scope.Mojio = result;
-          });
-        };
-        $scope.Mojio = {};
-        $scope.$watch('AllData.SelectedVehicle', function() {
-          return getMojio();
-        });
-      }],
-      link: function($rootScope, scope, element, attrs) {}
-    };
-  }
-]);
-
 App.directive('cmsBreadcrumb', [
   'contentFactory', function(contentFactory) {
     return {
@@ -13382,7 +13382,7 @@ App.directive('cmsMenu', [
   }
 ]);
 
-App.directive('cmsMenuListview', [
+App.directive('cmsMenuTreeview', [
   'contentFactory', function(contentFactory) {
     return {
       scope: {
@@ -13390,7 +13390,7 @@ App.directive('cmsMenuListview', [
         menuconfig: '='
       },
       restrict: 'EA',
-      templateUrl: 'cms_menu_listview.html',
+      templateUrl: 'cms_menu_treeview.html',
       controller: ["$scope", function($scope) {
         $scope.Content = contentFactory.Content;
         $scope.Child = contentFactory.Child;
@@ -13424,7 +13424,7 @@ App.directive('cmsMenuTile', [
   }
 ]);
 
-App.directive('cmsMenuTreeview', [
+App.directive('cmsMenuListview', [
   'contentFactory', function(contentFactory) {
     return {
       scope: {
@@ -13432,7 +13432,7 @@ App.directive('cmsMenuTreeview', [
         menuconfig: '='
       },
       restrict: 'EA',
-      templateUrl: 'cms_menu_treeview.html',
+      templateUrl: 'cms_menu_listview.html',
       controller: ["$scope", function($scope) {
         $scope.Content = contentFactory.Content;
         $scope.Child = contentFactory.Child;
@@ -13602,21 +13602,21 @@ App.directive('imageUploader', [
   }
 ]);
 
-App.directive('mymojioFaqCs', [
-  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster) {
-    return {
-      restrict: 'EA',
-      templateUrl: 'mymojio_faq_cs.html',
-      link: function(scope, element, attrs) {}
-    };
-  }
-]);
-
 App.directive('mymojioFaqEn', [
   '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster) {
     return {
       restrict: 'EA',
       templateUrl: 'mymojio_faq_en.html',
+      link: function(scope, element, attrs) {}
+    };
+  }
+]);
+
+App.directive('mymojioFaqCs', [
+  '$rootScope', '$window', 'mojioRemote', 'mojioLocal', 'mojioGlobal', 'toaster', function($rootScope, $window, mojioRemote, mojioLocal, mojioGlobal, toaster) {
+    return {
+      restrict: 'EA',
+      templateUrl: 'mymojio_faq_cs.html',
       link: function(scope, element, attrs) {}
     };
   }
